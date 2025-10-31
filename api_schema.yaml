@@ -1,102 +1,97 @@
 openapi: 3.0.3
 info:
-  title: Frontend Auth API Schema (Draft)
+  title: Frontend API schema (client contract)
   version: 1.0.0
-  description: Draft schema for frontend integration of auth endpoints.
 paths:
-  /api/auth/register/:
-    post:
-      summary: Register a new user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                username:
-                  type: string
-                  minLength: 3
-                  maxLength: 150
-                password:
-                  type: string
-                  minLength: 6
-                  maxLength: 128
-              required: [username, password]
-      responses:
-        '201':
-          description: User registered
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user:
-                    $ref: '#/components/schemas/User'
-                  token:
-                    type: string
-                required: [user, token]
-        '400':
-          description: Validation error
-  /api/auth/login/:
-    post:
-      summary: Login with username and password
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                username:
-                  type: string
-                password:
-                  type: string
-              required: [username, password]
-      responses:
-        '200':
-          description: Login successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user:
-                    $ref: '#/components/schemas/User'
-                  token:
-                    type: string
-                required: [user, token]
-        '400':
-          description: Invalid credentials
-  /api/auth/me/:
+  /api/listings/popular/:
     get:
-      summary: Get current authenticated user
-      security:
-        - bearerAuth: []
+      description: Get top listings by view_count
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          required: false
+          description: Max items (default 20, max 100)
       responses:
         '200':
-          description: Current user
+          description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
-        '401':
-          description: Unauthorized
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListingShort'
+  /api/listings/by-url/:
+    post:
+      description: Get or create listing by URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListingByUrlRequest'
+      responses:
+        '200':
+          description: Existing listing returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+        '400':
+          description: Invalid URL
+        '422':
+          description: Unable to fetch or parse listing
+  /api/listings/{pk}/:
+    get:
+      description: Retrieve listing by ID and increment view count
+      parameters:
+        - in: path
+          name: pk
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+        '404':
+          description: Not found
 components:
   schemas:
-    User:
+    ListingShort:
       type: object
       properties:
-        id:
-          type: integer
-        username:
-          type: string
-        date_joined:
-          type: string
-          format: date-time
-      required: [id, username, date_joined]
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+        id: { type: integer }
+        title: { type: string }
+        image_url: { type: string, format: uri, nullable: true }
+        price: { type: string, nullable: true, description: Decimal as string }
+        view_count: { type: integer }
+      required: [id, title, view_count]
+    ListingDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        avito_url: { type: string, format: uri }
+        title: { type: string }
+        image_url: { type: string, format: uri, nullable: true }
+        price: { type: string, nullable: true, description: Decimal as string }
+        description: { type: string }
+        view_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, avito_url, title, description, view_count, created_at, updated_at]
+    ListingByUrlRequest:
+      type: object
+      properties:
+        url: { type: string, format: uri }
+      required: [url]

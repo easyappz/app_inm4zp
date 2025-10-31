@@ -79,6 +79,82 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           description: Unauthorized
+  /api/listings/popular/:
+    get:
+      operationId: api_listings_popular_list
+      description: Get top listings by view_count.
+      tags:
+      - listings
+      security: []
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        required: false
+        description: Max items to return (default 20, max 100)
+      responses:
+        '200':
+          description: Popular listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListingShort'
+  /api/listings/by-url/:
+    post:
+      operationId: api_listings_by_url_create
+      description: If listing with given URL exists, return it. Otherwise fetch data from URL, create a new listing and return it.
+      tags:
+      - listings
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListingByUrlRequest'
+      responses:
+        '200':
+          description: Existing listing returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+        '201':
+          description: Listing created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+        '400':
+          description: Invalid URL
+        '422':
+          description: Unable to fetch or parse listing
+  /api/listings/{pk}/:
+    get:
+      operationId: api_listing_detail_retrieve
+      description: Retrieve listing by ID and increment view count.
+      tags:
+      - listings
+      security: []
+      parameters:
+      - in: path
+        name: pk
+        required: true
+        schema:
+          type: integer
+        description: Listing ID
+      responses:
+        '200':
+          description: Listing detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+        '404':
+          description: Not found
 components:
   schemas:
     Message:
@@ -134,6 +210,60 @@ components:
         token:
           type: string
       required: [user, token]
+    ListingShort:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        image_url:
+          type: string
+          nullable: true
+          format: uri
+        price:
+          type: string
+          nullable: true
+          description: Decimal as string
+        view_count:
+          type: integer
+      required: [id, title, view_count]
+    ListingDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        avito_url:
+          type: string
+          format: uri
+        title:
+          type: string
+        image_url:
+          type: string
+          nullable: true
+          format: uri
+        price:
+          type: string
+          nullable: true
+          description: Decimal as string
+        description:
+          type: string
+        view_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, avito_url, title, description, view_count, created_at, updated_at]
+    ListingByUrlRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+      required: [url]
   securitySchemes:
     bearerAuth:
       type: http

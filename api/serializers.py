@@ -36,6 +36,17 @@ class ListingDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'view_count', 'created_at', 'updated_at']
 
 
+class ListingShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Listing
+        fields = ['id', 'title', 'image_url', 'price', 'view_count']
+        read_only_fields = ['id', 'title', 'image_url', 'price', 'view_count']
+
+
+class ListingByUrlRequestSerializer(serializers.Serializer):
+    url = serializers.URLField()
+
+
 class CommentSerializer(serializers.ModelSerializer):
     """
     Unified serializer for read & write operations on comments.
