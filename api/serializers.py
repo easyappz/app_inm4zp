@@ -89,7 +89,6 @@ class CommentSerializer(serializers.ModelSerializer):
                     if re.search(bp.pattern, text, flags=re.IGNORECASE):
                         violations.append(bp.pattern)
                 except re.error:
-                    # Invalid regex should not block execution; fallback to substring
                     if bp.pattern.lower() in lowered:
                         violations.append(bp.pattern)
             else:
@@ -100,7 +99,6 @@ class CommentSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        # Expect listing and user provided via context (e.g., from the view)
         listing = self.context.get('listing')
         if listing is None and self.context.get('listing_id') is not None:
             listing = get_object_or_404(Listing, pk=self.context['listing_id'])
@@ -126,10 +124,6 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class BannedPatternSerializer(serializers.ModelSerializer):
-    """
-    Internal/utility serializer for banned patterns. Not intended for public API exposure.
-    """
-
     class Meta:
         model = BannedPattern
         fields = ['id', 'pattern', 'is_regex', 'description', 'active', 'created_at', 'updated_at']
@@ -185,3 +179,52 @@ class UserSerializer(serializers.ModelSerializer):
 class AuthResponseSerializer(serializers.Serializer):
     user = UserSerializer()
     token = serializers.CharField()
+
+
+# ===== Comments feature serializers =====
+
+class CommentReadSerializer(serializers.ModelSerializer):
+    """Read serializer for comments with masked content if deleted and ownership flag."""
+
+    PLACEHOLDER_TEXT = "Комментарий удалён пользователем"
+
+    user = UserPublicSerializer(read_only=True)
+    is_owner = serializers.SerializerMethodField()
+    content = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Comment
+        fields = [
+            'id', 'content', 'user', 'created_at', 'updated_at', 'edited', 'deleted', 'likes_count', 'is_owner',
+        ]
+        read_only_fields = fields
+
+    def get_is_owner(self, obj: Comment) -> bool:
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if user is None or not getattr(user, 'is_authenticated', False):
+            return False
+        return obj.user_id == user.id
+
+    def get_content(self, obj: Comment) -> str:
+        if obj.deleted:
+            return self.PLACEHOLDER_TEXT
+        return obj.content
+
+
+class CommentCreateSerializer(serializers.Serializer):
+    content = serializers.CharField(min_length=1, allow_blank=False, trim_whitespace=True)
+
+
+class CommentUpdateSerializer(serializers.Serializer):
+    content = serializers.CharField(required=False, allow_blank=False, trim_whitespace=True)
+
+
+class BannedViolationSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    description = serializers.CharField(allow_blank=True)
+
+
+class CommentLikeToggleSerializer(serializers.Serializer):
+    liked = serializers.BooleanField()
+    likes_count = serializers.IntegerField()

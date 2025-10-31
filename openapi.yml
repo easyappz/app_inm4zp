@@ -155,6 +155,205 @@ paths:
                 $ref: '#/components/schemas/ListingDetail'
         '404':
           description: Not found
+  /api/listings/{listing_id}/comments/:
+    get:
+      operationId: api_listing_comments_list
+      description: List comments for listing ordered by created_at desc with limit/offset pagination.
+      tags:
+      - comments
+      security: []
+      parameters:
+      - in: path
+        name: listing_id
+        required: true
+        schema:
+          type: integer
+        description: Listing ID
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        required: false
+        description: Limit (default 20, max 100)
+      - in: query
+        name: offset
+        schema:
+          type: integer
+        required: false
+        description: Offset (default 0)
+      responses:
+        '200':
+          description: Comments list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count, limit, offset, results]
+                properties:
+                  count:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CommentRead'
+        '404':
+          description: Listing not found
+    post:
+      operationId: api_listing_comments_create
+      description: Create a comment for listing. Validates content against active BannedPattern.
+      tags:
+      - comments
+      security:
+      - bearerAuth: []
+      parameters:
+      - in: path
+        name: listing_id
+        required: true
+        schema:
+          type: integer
+        description: Listing ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreate'
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentRead'
+        '400':
+          description: Banned patterns violated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BannedViolation'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Listing not found
+  /api/comments/{pk}/:
+    get:
+      operationId: api_comment_detail_retrieve
+      description: Retrieve a single comment by ID.
+      tags:
+      - comments
+      security: []
+      parameters:
+      - in: path
+        name: pk
+        required: true
+        schema:
+          type: integer
+        description: Comment ID
+      responses:
+        '200':
+          description: Comment detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentRead'
+        '404':
+          description: Not found
+    patch:
+      operationId: api_comment_detail_update
+      description: Update own comment (partial). Sets edited=true when content changes and re-validates against BannedPattern.
+      tags:
+      - comments
+      security:
+      - bearerAuth: []
+      parameters:
+      - in: path
+        name: pk
+        required: true
+        schema:
+          type: integer
+        description: Comment ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentUpdate'
+      responses:
+        '200':
+          description: Updated comment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentRead'
+        '400':
+          description: Banned patterns violated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BannedViolation'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+    delete:
+      operationId: api_comment_detail_delete
+      description: Soft-delete own comment (mark deleted=true). The original content won't be exposed afterwards.
+      tags:
+      - comments
+      security:
+      - bearerAuth: []
+      parameters:
+      - in: path
+        name: pk
+        required: true
+        schema:
+          type: integer
+        description: Comment ID
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+  /api/comments/{pk}/like/:
+    post:
+      operationId: api_comment_like_toggle
+      description: Toggle like for a comment. If like existed, it will be removed; otherwise created.
+      tags:
+      - comments
+      security:
+      - bearerAuth: []
+      parameters:
+      - in: path
+        name: pk
+        required: true
+        schema:
+          type: integer
+        description: Comment ID
+      responses:
+        '200':
+          description: Like toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LikeToggle'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
 components:
   schemas:
     Message:
@@ -264,6 +463,67 @@ components:
           type: string
           format: uri
       required: [url]
+    UserPublic:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+      required: [id, username]
+    CommentRead:
+      type: object
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+          description: If comment deleted, this is a placeholder message instead of original content
+        user:
+          $ref: '#/components/schemas/UserPublic'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        edited:
+          type: boolean
+        deleted:
+          type: boolean
+        likes_count:
+          type: integer
+        is_owner:
+          type: boolean
+      required: [id, content, user, created_at, updated_at, edited, deleted, likes_count, is_owner]
+    CommentCreate:
+      type: object
+      properties:
+        content:
+          type: string
+      required: [content]
+    CommentUpdate:
+      type: object
+      properties:
+        content:
+          type: string
+      additionalProperties: false
+    BannedViolation:
+      type: object
+      properties:
+        id:
+          type: integer
+        description:
+          type: string
+      required: [id, description]
+    LikeToggle:
+      type: object
+      properties:
+        liked:
+          type: boolean
+        likes_count:
+          type: integer
+      required: [liked, likes_count]
   securitySchemes:
     bearerAuth:
       type: http

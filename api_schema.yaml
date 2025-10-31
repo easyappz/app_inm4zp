@@ -1,97 +1,134 @@
-openapi: 3.0.3
-info:
-  title: Frontend API schema (client contract)
-  version: 1.0.0
-paths:
-  /api/listings/popular/:
-    get:
-      description: Get top listings by view_count
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-          required: false
-          description: Max items (default 20, max 100)
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ListingShort'
-  /api/listings/by-url/:
-    post:
-      description: Get or create listing by URL
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ListingByUrlRequest'
-      responses:
-        '200':
-          description: Existing listing returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ListingDetail'
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ListingDetail'
-        '400':
-          description: Invalid URL
-        '422':
-          description: Unable to fetch or parse listing
-  /api/listings/{pk}/:
-    get:
-      description: Retrieve listing by ID and increment view count
-      parameters:
-        - in: path
-          name: pk
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ListingDetail'
-        '404':
-          description: Not found
-components:
-  schemas:
-    ListingShort:
-      type: object
-      properties:
-        id: { type: integer }
-        title: { type: string }
-        image_url: { type: string, format: uri, nullable: true }
-        price: { type: string, nullable: true, description: Decimal as string }
-        view_count: { type: integer }
-      required: [id, title, view_count]
-    ListingDetail:
-      type: object
-      properties:
-        id: { type: integer }
-        avito_url: { type: string, format: uri }
-        title: { type: string }
-        image_url: { type: string, format: uri, nullable: true }
-        price: { type: string, nullable: true, description: Decimal as string }
-        description: { type: string }
-        view_count: { type: integer }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-      required: [id, avito_url, title, description, view_count, created_at, updated_at]
-    ListingByUrlRequest:
-      type: object
-      properties:
-        url: { type: string, format: uri }
-      required: [url]
+version: 1
+endpoints:
+  - name: List comments for listing
+    method: GET
+    path: /api/listings/{listing_id}/comments/
+    path_params:
+      listing_id: integer
+    query:
+      limit:
+        type: integer
+        required: false
+        default: 20
+        description: Max items to return (1..100)
+      offset:
+        type: integer
+        required: false
+        default: 0
+        description: Offset for pagination
+    response:
+      200:
+        content-type: application/json
+        body:
+          count: integer
+          limit: integer
+          offset: integer
+          results: Comment[]
+      404:
+        description: Listing not found
+  - name: Create comment for listing
+    method: POST
+    path: /api/listings/{listing_id}/comments/
+    auth: bearer
+    path_params:
+      listing_id: integer
+    request:
+      content-type: application/json
+      body:
+        content: string
+    response:
+      201:
+        content-type: application/json
+        body: Comment
+      400:
+        description: Banned patterns violated
+        content-type: application/json
+        body: BannedViolation[]
+      401:
+        description: Unauthorized
+      404:
+        description: Listing not found
+  - name: Get comment detail
+    method: GET
+    path: /api/comments/{pk}/
+    path_params:
+      pk: integer
+    response:
+      200:
+        content-type: application/json
+        body: Comment
+      404:
+        description: Not found
+  - name: Update own comment
+    method: PATCH
+    path: /api/comments/{pk}/
+    auth: bearer
+    path_params:
+      pk: integer
+    request:
+      content-type: application/json
+      body:
+        content?: string
+    response:
+      200:
+        content-type: application/json
+        body: Comment
+      400:
+        description: Banned patterns violated
+        content-type: application/json
+        body: BannedViolation[]
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden
+      404:
+        description: Not found
+  - name: Delete own comment (soft)
+    method: DELETE
+    path: /api/comments/{pk}/
+    auth: bearer
+    path_params:
+      pk: integer
+    response:
+      204:
+        description: Deleted
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden
+      404:
+        description: Not found
+  - name: Toggle like on comment
+    method: POST
+    path: /api/comments/{pk}/like/
+    auth: bearer
+    path_params:
+      pk: integer
+    response:
+      200:
+        content-type: application/json
+        body:
+          liked: boolean
+          likes_count: integer
+      401:
+        description: Unauthorized
+      404:
+        description: Not found
+
+# Shared schemas
+schemas:
+  Comment:
+    id: integer
+    content: string # If deleted=true, returns placeholder "Комментарий удалён пользователем"
+    user:
+      id: integer
+      username: string
+    created_at: string(datetime)
+    updated_at: string(datetime)
+    edited: boolean
+    deleted: boolean
+    likes_count: integer
+    is_owner: boolean
+  BannedViolation:
+    id: integer
+    description: string

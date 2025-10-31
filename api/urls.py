@@ -7,6 +7,9 @@ from .views import (
     PopularListingsView,
     ListingByUrlView,
     ListingDetailView,
+    CommentListCreateView,
+    CommentDetailView,
+    CommentLikeToggleView,
 )
 
 urlpatterns = [
@@ -19,4 +22,9 @@ urlpatterns = [
     path("listings/popular/", PopularListingsView.as_view(), name="listings-popular"),
     path("listings/by-url/", ListingByUrlView.as_view(), name="listings-by-url"),
     path("listings/<int:pk>/", ListingDetailView.as_view(), name="listing-detail"),
+
+    # Comments
+    path("listings/<int:listing_id>/comments/", CommentListCreateView.as_view(), name="listing-comments"),
+    path("comments/<int:pk>/", CommentDetailView.as_view(), name="comment-detail"),
+    path("comments/<int:pk>/like/", CommentLikeToggleView.as_view(), name="comment-like-toggle"),
 ]
