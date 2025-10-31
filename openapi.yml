@@ -10,10 +10,7 @@ paths:
       description: Get a hello world message
       tags:
       - api
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
+      security: []
       responses:
         '200':
           content:
@@ -21,6 +18,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/Message'
           description: ''
+  /api/auth/register/:
+    post:
+      operationId: api_auth_register_create
+      description: Register a new user and receive a JWT token.
+      tags:
+      - auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error
+  /api/auth/login/:
+    post:
+      operationId: api_auth_login_create
+      description: Login and receive a JWT token.
+      tags:
+      - auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid credentials
+  /api/auth/me/:
+    get:
+      operationId: api_auth_me_retrieve
+      description: Get current authenticated user.
+      tags:
+      - auth
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
 components:
   schemas:
     Message:
@@ -36,11 +94,48 @@ components:
       required:
       - message
       - timestamp
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 150
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+      required: [username, password]
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+        date_joined:
+          type: string
+          format: date-time
+      required: [id, username, date_joined]
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+      required: [user, token]
   securitySchemes:
-    basicAuth:
+    bearerAuth:
       type: http
-      scheme: basic
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: sessionid
+      scheme: bearer
+      bearerFormat: JWT

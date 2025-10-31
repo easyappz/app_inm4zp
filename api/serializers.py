@@ -4,6 +4,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
 from .models import Listing, Comment, BannedPattern
+from .authjwt import encode_jwt
 
 
 User = get_user_model()
@@ -122,3 +123,54 @@ class BannedPatternSerializer(serializers.ModelSerializer):
         model = BannedPattern
         fields = ['id', 'pattern', 'is_regex', 'description', 'active', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+# --- Auth serializers ---
+
+class RegisterSerializer(serializers.Serializer):
+    username = serializers.CharField(min_length=3, max_length=150)
+    password = serializers.CharField(min_length=6, max_length=128, write_only=True)
+
+    def validate_username(self, value: str) -> str:
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username is already taken.")
+        return value
+
+    def create(self, validated_data):
+        user = User(username=validated_data["username"])
+        user.set_password(validated_data["password"])
+        user.save()
+        return user
+
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+    token = serializers.CharField(read_only=True)
+
+    def validate(self, attrs):
+        username = attrs.get("username")
+        password = attrs.get("password")
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"username": "Invalid credentials."})
+        if not user.check_password(password):
+            raise serializers.ValidationError({"password": "Invalid credentials."})
+
+        token = encode_jwt({"user_id": user.id})
+        attrs["token"] = token
+        self.user = user  # attach for view usage
+        return attrs
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "date_joined"]
+        read_only_fields = ["id", "username", "date_joined"]
+
+
+class AuthResponseSerializer(serializers.Serializer):
+    user = UserSerializer()
+    token = serializers.CharField()
