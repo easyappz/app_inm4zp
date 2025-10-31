@@ -9,15 +9,20 @@ paths:
       operationId: api_hello_retrieve
       description: Get a hello world message
       tags:
-      - api
+      - misc
       security: []
       responses:
         '200':
+          description: ''
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
-          description: ''
+              examples:
+                HelloResponse:
+                  value:
+                    message: Hello!
+                    timestamp: '2025-01-01T12:00:00Z'
   /api/auth/register/:
     post:
       operationId: api_auth_register_create
@@ -31,6 +36,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              RegisterRequest:
+                value:
+                  username: alice
+                  password: secret123
       responses:
         '201':
           description: User registered
@@ -38,6 +48,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+              examples:
+                RegisterResponse:
+                  value:
+                    user:
+                      id: 1
+                      username: alice
+                      date_joined: '2025-01-01T00:00:00Z'
+                    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         '400':
           description: Validation error
   /api/auth/login/:
@@ -53,6 +71,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginRequest'
+            examples:
+              LoginRequest:
+                value:
+                  username: alice
+                  password: secret123
       responses:
         '200':
           description: Login successful
@@ -60,6 +83,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+              examples:
+                LoginResponse:
+                  value:
+                    user:
+                      id: 1
+                      username: alice
+                      date_joined: '2025-01-01T00:00:00Z'
+                    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         '400':
           description: Invalid credentials
   /api/auth/me/:
@@ -77,6 +108,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+              examples:
+                AuthMeResponse:
+                  value:
+                    id: 1
+                    username: alice
+                    date_joined: '2025-01-01T00:00:00Z'
         '401':
           description: Unauthorized
   /api/listings/popular/:
@@ -102,6 +139,19 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ListingShort'
+              examples:
+                PopularListingsResponse:
+                  value:
+                    - id: 10
+                      title: iPhone 13 Pro
+                      image_url: https://example.com/img1.jpg
+                      price: '79999.00'
+                      view_count: 1280
+                    - id: 11
+                      title: PlayStation 5
+                      image_url: https://example.com/img2.jpg
+                      price: '55999.00'
+                      view_count: 990
   /api/listings/by-url/:
     post:
       operationId: api_listings_by_url_create
@@ -115,6 +165,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ListingByUrlRequest'
+            examples:
+              ListingByUrlRequest:
+                value:
+                  url: https://www.avito.ru/item/123456
       responses:
         '200':
           description: Existing listing returned
@@ -128,6 +182,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListingDetail'
+              examples:
+                ListingByUrlResponseCreated:
+                  value:
+                    id: 20
+                    avito_url: https://www.avito.ru/item/123456
+                    title: MacBook Air 13
+                    image_url: https://example.com/mac.jpg
+                    price: '89999.00'
+                    description: Excellent condition
+                    view_count: 0
+                    created_at: '2025-01-02T10:00:00Z'
+                    updated_at: '2025-01-02T10:00:00Z'
         '400':
           description: Invalid URL
         '422':
@@ -153,6 +219,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListingDetail'
+              examples:
+                ListingDetailResponse:
+                  value:
+                    id: 20
+                    avito_url: https://www.avito.ru/item/123456
+                    title: MacBook Air 13
+                    image_url: https://example.com/mac.jpg
+                    price: '89999.00'
+                    description: Excellent condition
+                    view_count: 101
+                    created_at: '2025-01-02T10:00:00Z'
+                    updated_at: '2025-01-03T14:00:00Z'
         '404':
           description: Not found
   /api/listings/{listing_id}/comments/:
@@ -200,6 +278,24 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/CommentRead'
+              examples:
+                CommentsListResponse:
+                  value:
+                    count: 1
+                    limit: 20
+                    offset: 0
+                    results:
+                      - id: 100
+                        content: Great item!
+                        user:
+                          id: 1
+                          username: alice
+                        created_at: '2025-01-03T12:00:00Z'
+                        updated_at: '2025-01-03T12:00:00Z'
+                        edited: false
+                        deleted: false
+                        likes_count: 3
+                        is_owner: false
         '404':
           description: Listing not found
     post:
@@ -222,6 +318,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CommentCreate'
+            examples:
+              CreateCommentRequest:
+                value:
+                  content: Great item!
       responses:
         '201':
           description: Comment created
@@ -229,6 +329,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CommentRead'
+              examples:
+                CreateCommentResponse:
+                  value:
+                    id: 101
+                    content: Great item!
+                    user:
+                      id: 1
+                      username: alice
+                    created_at: '2025-01-03T12:10:00Z'
+                    updated_at: '2025-01-03T12:10:00Z'
+                    edited: false
+                    deleted: false
+                    likes_count: 0
+                    is_owner: true
         '400':
           description: Banned patterns violated
           content:
@@ -237,6 +351,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/BannedViolation'
+              examples:
+                CreateCommentViolation:
+                  value:
+                    - id: 1
+                      description: No phone numbers
         '401':
           description: Unauthorized
         '404':
@@ -262,6 +381,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CommentRead'
+              examples:
+                CommentDetailResponse:
+                  value:
+                    id: 100
+                    content: Great item!
+                    user:
+                      id: 2
+                      username: bob
+                    created_at: '2025-01-03T12:00:00Z'
+                    updated_at: '2025-01-03T12:00:00Z'
+                    edited: false
+                    deleted: false
+                    likes_count: 3
+                    is_owner: false
         '404':
           description: Not found
     patch:
@@ -284,6 +417,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CommentUpdate'
+            examples:
+              UpdateCommentRequest:
+                value:
+                  content: Updated content
       responses:
         '200':
           description: Updated comment
@@ -291,6 +428,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CommentRead'
+              examples:
+                UpdateCommentResponse:
+                  value:
+                    id: 100
+                    content: Updated content
+                    user:
+                      id: 1
+                      username: alice
+                    created_at: '2025-01-03T12:00:00Z'
+                    updated_at: '2025-01-03T12:20:00Z'
+                    edited: true
+                    deleted: false
+                    likes_count: 3
+                    is_owner: true
         '400':
           description: Banned patterns violated
           content:
@@ -299,6 +450,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/BannedViolation'
+              examples:
+                UpdateCommentViolation:
+                  value:
+                    - id: 1
+                      description: No phone numbers
         '401':
           description: Unauthorized
         '403':
@@ -350,6 +506,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LikeToggle'
+              examples:
+                LikeToggleResponse:
+                  value:
+                    liked: true
+                    likes_count: 4
         '401':
           description: Unauthorized
         '404':

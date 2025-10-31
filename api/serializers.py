@@ -228,3 +228,17 @@ class BannedViolationSerializer(serializers.Serializer):
 class CommentLikeToggleSerializer(serializers.Serializer):
     liked = serializers.BooleanField()
     likes_count = serializers.IntegerField()
+
+
+# ===== Utility and response serializers =====
+
+class MessageSerializer(serializers.Serializer):
+    message = serializers.CharField(max_length=200)
+    timestamp = serializers.DateTimeField()
+
+
+class CommentsListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    limit = serializers.IntegerField()
+    offset = serializers.IntegerField()
+    results = CommentReadSerializer(many=True, read_only=True)

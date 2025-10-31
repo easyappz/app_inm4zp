@@ -2,7 +2,7 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
 from django.db.models import F
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -13,7 +13,7 @@ import re
 from .authjwt import encode_jwt
 from .models import Listing, Comment, BannedPattern, CommentLike
 from .serializers import (
-    MessageSerializer,  # assuming existing
+    MessageSerializer,
     RegisterSerializer,
     LoginSerializer,
     UserSerializer,
@@ -26,6 +26,7 @@ from .serializers import (
     CommentUpdateSerializer,
     BannedViolationSerializer,
     CommentLikeToggleSerializer,
+    CommentsListResponseSerializer,
 )
 from .services.avito import fetch_avito_data
 
@@ -36,7 +37,17 @@ class HelloView(APIView):
     """
 
     @extend_schema(
-        responses={200: MessageSerializer}, description="Get a hello world message"
+        responses={200: MessageSerializer},
+        description="Get a hello world message",
+        tags=["misc"],
+        examples=[
+            OpenApiExample(
+                "HelloResponse",
+                value={"message": "Hello!", "timestamp": "2025-01-01T12:00:00Z"},
+                response_only=True,
+                status_codes=["200"],
+            )
+        ],
     )
     def get(self, request):
         data = {"message": "Hello!", "timestamp": timezone.now()}
@@ -54,6 +65,24 @@ class AuthRegisterView(APIView):
             400: {"description": "Validation error"},
         },
         description="Register a new user and receive a JWT token.",
+        tags=["auth"],
+        examples=[
+            OpenApiExample(
+                "RegisterRequest",
+                value={"username": "alice", "password": "secret123"},
+                request_only=True,
+                status_codes=["201", "400"],
+            ),
+            OpenApiExample(
+                "RegisterResponse",
+                value={
+                    "user": {"id": 1, "username": "alice", "date_joined": "2025-01-01T00:00:00Z"},
+                    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                },
+                response_only=True,
+                status_codes=["201"],
+            ),
+        ],
     )
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -76,6 +105,24 @@ class AuthLoginView(APIView):
             400: {"description": "Invalid credentials"},
         },
         description="Login and receive a JWT token.",
+        tags=["auth"],
+        examples=[
+            OpenApiExample(
+                "LoginRequest",
+                value={"username": "alice", "password": "secret123"},
+                request_only=True,
+                status_codes=["200", "400"],
+            ),
+            OpenApiExample(
+                "LoginResponse",
+                value={
+                    "user": {"id": 1, "username": "alice", "date_joined": "2025-01-01T00:00:00Z"},
+                    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                },
+                response_only=True,
+                status_codes=["200"],
+            ),
+        ],
     )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -97,6 +144,15 @@ class AuthMeView(APIView):
             401: {"description": "Unauthorized"},
         },
         description="Get current authenticated user.",
+        tags=["auth"],
+        examples=[
+            OpenApiExample(
+                "AuthMeResponse",
+                value={"id": 1, "username": "alice", "date_joined": "2025-01-01T00:00:00Z"},
+                response_only=True,
+                status_codes=["200"],
+            )
+        ],
     )
     def get(self, request):
         return Response(UserSerializer(request.user).data)
@@ -118,6 +174,17 @@ class PopularListingsView(APIView):
         responses={200: ListingShortSerializer(many=True)},
         description="Get top listings by view_count.",
         tags=["listings"],
+        examples=[
+            OpenApiExample(
+                "PopularListingsResponse",
+                value=[
+                    {"id": 10, "title": "iPhone 13 Pro", "image_url": "https://example.com/img1.jpg", "price": "79999.00", "view_count": 1280},
+                    {"id": 11, "title": "PlayStation 5", "image_url": "https://example.com/img2.jpg", "price": "55999.00", "view_count": 990},
+                ],
+                response_only=True,
+                status_codes=["200"],
+            )
+        ],
     )
     def get(self, request):
         try:
@@ -142,6 +209,30 @@ class ListingByUrlView(APIView):
         },
         description="If listing with given URL exists, return it. Otherwise fetch data from URL, create a new listing and return it.",
         tags=["listings"],
+        examples=[
+            OpenApiExample(
+                "ListingByUrlRequest",
+                value={"url": "https://www.avito.ru/item/123456"},
+                request_only=True,
+                status_codes=["200", "201", "400", "422"],
+            ),
+            OpenApiExample(
+                "ListingByUrlResponseCreated",
+                value={
+                    "id": 20,
+                    "avito_url": "https://www.avito.ru/item/123456",
+                    "title": "MacBook Air 13",
+                    "image_url": "https://example.com/mac.jpg",
+                    "price": "89999.00",
+                    "description": "Excellent condition",
+                    "view_count": 0,
+                    "created_at": "2025-01-02T10:00:00Z",
+                    "updated_at": "2025-01-02T10:00:00Z",
+                },
+                response_only=True,
+                status_codes=["201"],
+            ),
+        ],
     )
     def post(self, request):
         req = ListingByUrlRequestSerializer(data=request.data)
@@ -196,6 +287,24 @@ class ListingDetailView(APIView):
         },
         description="Retrieve listing by ID and increment view count.",
         tags=["listings"],
+        examples=[
+            OpenApiExample(
+                "ListingDetailResponse",
+                value={
+                    "id": 20,
+                    "avito_url": "https://www.avito.ru/item/123456",
+                    "title": "MacBook Air 13",
+                    "image_url": "https://example.com/mac.jpg",
+                    "price": "89999.00",
+                    "description": "Excellent condition",
+                    "view_count": 101,
+                    "created_at": "2025-01-02T10:00:00Z",
+                    "updated_at": "2025-01-03T14:00:00Z",
+                },
+                response_only=True,
+                status_codes=["200"],
+            )
+        ],
     )
     def get(self, request, pk: int):
         listing = get_object_or_404(Listing, pk=pk)
@@ -237,23 +346,36 @@ class CommentListCreateView(APIView):
             OpenApiParameter(name='offset', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description='Offset (default 0)', required=False),
         ],
         responses={
-            200: {
-                'type': 'object',
-                'properties': {
-                    'count': {'type': 'integer'},
-                    'limit': {'type': 'integer'},
-                    'offset': {'type': 'integer'},
-                    'results': {
-                        'type': 'array',
-                        'items': CommentReadSerializer().as_dict() if hasattr(CommentReadSerializer, 'as_dict') else CommentReadSerializer,  # spectacular will handle class
-                    },
-                },
-                'required': ['count', 'limit', 'offset', 'results'],
-            },
+            200: CommentsListResponseSerializer,
             404: {"description": "Listing not found"},
         },
         description="List comments for listing ordered by created_at desc with limit/offset pagination.",
         tags=["comments"],
+        examples=[
+            OpenApiExample(
+                "CommentsListResponse",
+                value={
+                    "count": 1,
+                    "limit": 20,
+                    "offset": 0,
+                    "results": [
+                        {
+                            "id": 100,
+                            "content": "Great item!",
+                            "user": {"id": 1, "username": "alice"},
+                            "created_at": "2025-01-03T12:00:00Z",
+                            "updated_at": "2025-01-03T12:00:00Z",
+                            "edited": False,
+                            "deleted": False,
+                            "likes_count": 3,
+                            "is_owner": False,
+                        }
+                    ],
+                },
+                response_only=True,
+                status_codes=["200"],
+            )
+        ],
     )
     def get(self, request, listing_id: int):
         listing = get_object_or_404(Listing, pk=listing_id)
@@ -289,6 +411,36 @@ class CommentListCreateView(APIView):
         },
         description="Create a comment for listing. Validates content against active BannedPattern.",
         tags=["comments"],
+        examples=[
+            OpenApiExample(
+                "CreateCommentRequest",
+                value={"content": "Great item!"},
+                request_only=True,
+                status_codes=["201", "400"],
+            ),
+            OpenApiExample(
+                "CreateCommentResponse",
+                value={
+                    "id": 101,
+                    "content": "Great item!",
+                    "user": {"id": 1, "username": "alice"},
+                    "created_at": "2025-01-03T12:10:00Z",
+                    "updated_at": "2025-01-03T12:10:00Z",
+                    "edited": False,
+                    "deleted": False,
+                    "likes_count": 0,
+                    "is_owner": True,
+                },
+                response_only=True,
+                status_codes=["201"],
+            ),
+            OpenApiExample(
+                "CreateCommentViolation",
+                value=[{"id": 1, "description": "No phone numbers"}],
+                response_only=True,
+                status_codes=["400"],
+            ),
+        ],
     )
     def post(self, request, listing_id: int):
         if not request.user.is_authenticated:
@@ -317,6 +469,24 @@ class CommentDetailView(APIView):
         },
         description="Retrieve a single comment by ID.",
         tags=["comments"],
+        examples=[
+            OpenApiExample(
+                "CommentDetailResponse",
+                value={
+                    "id": 100,
+                    "content": "Great item!",
+                    "user": {"id": 2, "username": "bob"},
+                    "created_at": "2025-01-03T12:00:00Z",
+                    "updated_at": "2025-01-03T12:00:00Z",
+                    "edited": False,
+                    "deleted": False,
+                    "likes_count": 3,
+                    "is_owner": False,
+                },
+                response_only=True,
+                status_codes=["200"],
+            )
+        ],
     )
     def get(self, request, pk: int):
         comment = get_object_or_404(Comment, pk=pk)
@@ -333,6 +503,36 @@ class CommentDetailView(APIView):
         },
         description="Update own comment (partial). Sets edited=true when content changes and re-validates against BannedPattern.",
         tags=["comments"],
+        examples=[
+            OpenApiExample(
+                "UpdateCommentRequest",
+                value={"content": "Updated content"},
+                request_only=True,
+                status_codes=["200", "400"],
+            ),
+            OpenApiExample(
+                "UpdateCommentResponse",
+                value={
+                    "id": 100,
+                    "content": "Updated content",
+                    "user": {"id": 1, "username": "alice"},
+                    "created_at": "2025-01-03T12:00:00Z",
+                    "updated_at": "2025-01-03T12:20:00Z",
+                    "edited": True,
+                    "deleted": False,
+                    "likes_count": 3,
+                    "is_owner": True,
+                },
+                response_only=True,
+                status_codes=["200"],
+            ),
+            OpenApiExample(
+                "UpdateCommentViolation",
+                value=[{"id": 1, "description": "No phone numbers"}],
+                response_only=True,
+                status_codes=["400"],
+            ),
+        ],
     )
     def patch(self, request, pk: int):
         if not request.user.is_authenticated:
@@ -387,6 +587,14 @@ class CommentLikeToggleView(APIView):
         },
         description="Toggle like for a comment. If like existed, it will be removed; otherwise created.",
         tags=["comments"],
+        examples=[
+            OpenApiExample(
+                "LikeToggleResponse",
+                value={"liked": True, "likes_count": 4},
+                response_only=True,
+                status_codes=["200"],
+            )
+        ],
     )
     def post(self, request, pk: int):
         if not request.user.is_authenticated:
